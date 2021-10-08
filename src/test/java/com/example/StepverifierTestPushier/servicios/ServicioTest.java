@@ -7,6 +7,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.time.Duration;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
@@ -23,4 +25,47 @@ class ServicioTest {
         Flux<String> uno = servicio.buscarTodos();
         StepVerifier.create(uno).expectNext("Pedro").expectNext("Maria").expectNext("Jesus").expectNext("Carmen").verifyComplete();
     }
+
+    @Test
+    void testVariosLento() {
+        Flux<String> uno = servicio.buscarTodosLento();
+        StepVerifier.create(uno)
+                .expectNext("Pedro")
+                .thenAwait(Duration.ofSeconds(1))
+                .expectNext("Maria")
+                .thenAwait(Duration.ofSeconds(1))
+                .expectNext("Jesus")
+                .thenAwait(Duration.ofSeconds(1))
+                .expectNext("Carmen")
+                .thenAwait(Duration.ofSeconds(1)).verifyComplete();
+    }
+    @Test
+    void testTodosFiltro() {
+        Flux<String> source = servicio.buscarTodosFiltro();
+        StepVerifier
+                .create(source)
+                .expectNext("JOHN")
+                .expectNextMatches(name -> name.startsWith("MA"))
+                .expectNext("CLOE", "CATE")
+                .expectComplete()
+                .verify();
+    }
+    //Exceptions
+    //El siguiente test se cambio de nombre para no tener conflictos con el test anterior
+    @Test
+    void testTodosFiltroExceptions() {
+
+        Flux<String> source = servicio.buscarTodosFiltro();
+
+        Flux<String> error = source.concatWith(
+                Mono.error(new IllegalArgumentException("Mensaje de Error"))
+        );
+        StepVerifier
+                .create(error)
+                .expectNextCount(4)
+                .expectErrorMatches(throwable -> throwable instanceof IllegalArgumentException &&
+                        throwable.getMessage().equals("Mensaje de Error")
+                ).verify();
+    }
+
 }
